@@ -1,0 +1,185 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="Pitsky Guard is a Harper component for explainable simulated payment authorization." />
+    <meta name="color-scheme" content="light dark" />
+    <meta name="theme-color" id="theme-color" content="#edf4ef" />
+    <title>Pitsky Guard | Harper payment authorization</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <script>
+      (() => {
+        const storageKey = 'pitsky-theme';
+        const media = window.matchMedia('(prefers-color-scheme: dark)');
+        let preference = 'system';
+        try {
+          const saved = window.localStorage.getItem(storageKey);
+          if (saved === 'light' || saved === 'dark' || saved === 'system') preference = saved;
+        } catch {}
+        const apply = (nextPreference, persist = false) => {
+          preference = nextPreference === 'light' || nextPreference === 'dark' ? nextPreference : 'system';
+          const resolved = preference === 'system' ? (media.matches ? 'dark' : 'light') : preference;
+          document.documentElement.dataset.theme = resolved;
+          document.documentElement.dataset.themePreference = preference;
+          document.documentElement.style.colorScheme = resolved;
+          document.querySelector('#theme-color')?.setAttribute('content', resolved === 'dark' ? '#08120e' : '#edf4ef');
+          const picker = document.querySelector('#theme-select');
+          if (picker) picker.value = preference;
+          const icon = document.querySelector('#theme-icon');
+          if (icon) icon.textContent = preference === 'system' ? '◐' : preference === 'dark' ? '☾' : '☀';
+          if (persist) {
+            try { window.localStorage.setItem(storageKey, preference); } catch {}
+          }
+        };
+        window.pitskyTheme = { apply, media, getPreference: () => preference };
+        apply(preference);
+      })();
+    </script>
+    <link rel="icon" type="image/png" href="/pitsky-mark.png" />
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <header class="topbar">
+        <a class="brand" href="/" aria-label="Pitsky Guard home"><span class="brand-logo"><img src="/pitsky-mark.png" alt="" /></span><span>Pitsky <b>Guard</b></span></a>
+        <div class="topbar-right">
+          <span class="environment"><span class="status-dot"></span> OPERATOR: rinku <span class="environment-separator">/</span> HARPER COMPONENT</span>
+          <label class="theme-control" title="Color theme">
+            <span id="theme-icon" aria-hidden="true">◐</span>
+            <select id="theme-select" aria-label="Color theme">
+              <option value="system">System</option>
+              <option value="light">Light</option>
+              <option value="dark">Dark</option>
+            </select>
+          </label>
+          <button class="ghost-button" id="seed-demo">Load demo</button>
+        </div>
+      </header>
+
+      <div class="workspace">
+      <main>
+        <section class="flow-strip" id="overview" aria-label="Payment flow">
+          <div class="flow-node"><span class="flow-number">01</span><strong>Input</strong><small>Merchant request</small></div>
+          <span class="flow-arrow">→</span>
+          <div class="flow-node active"><span class="flow-number">02</span><strong>Resolve</strong><small>Harper resource</small></div>
+          <span class="flow-arrow">→</span>
+          <div class="flow-node"><span class="flow-number">03</span><strong>Evaluate</strong><small>Policy gate</small></div>
+          <span class="flow-arrow">→</span>
+          <div class="flow-node"><span class="flow-number">04</span><strong>Commit</strong><small>Account state</small></div>
+          <span class="flow-arrow">→</span>
+          <div class="flow-node"><span class="flow-number">05</span><strong>Record</strong><small>Audit record</small></div>
+        </section>
+
+        <section class="metric-strip" aria-label="System summary">
+          <div class="metric"><div class="metric-topline"><span class="metric-label">ACCOUNTS</span><span class="metric-icon">◎</span></div><div class="metric-value-row"><strong id="account-count">—</strong><span class="metric-note">protected</span></div><small class="metric-purpose">State Harper evaluates</small></div>
+          <div class="metric"><div class="metric-topline"><span class="metric-label">DECISIONS</span><span class="metric-icon">◌</span></div><div class="metric-value-row"><strong id="decision-count">—</strong><span class="metric-note">audit events</span></div><small class="metric-purpose">Approval and decline history</small></div>
+          <div class="metric"><div class="metric-topline"><span class="metric-label">APPROVAL RATE</span><span class="metric-icon">↗</span></div><div class="metric-value-row"><strong id="approval-rate">—</strong><span class="metric-note">requests approved</span></div><small class="metric-purpose">Decision quality signal</small><span class="sparkline" id="approval-sparkline" aria-hidden="true"></span></div>
+          <div class="metric metric-accent"><div class="metric-topline"><span class="metric-label">VOLUME CHECKED</span><span class="metric-icon">$</span></div><div class="metric-value-row"><strong id="exposure-guarded">—</strong><span class="metric-note">evaluated</span></div><small class="metric-purpose">Positive payment requests</small><span class="sparkline" id="exposure-sparkline" aria-hidden="true"></span></div>
+        </section>
+
+        <div id="notice" class="notice" role="status" hidden></div>
+
+        <section class="console-grid" id="payment">
+          <div class="left-column">
+            <div class="section-heading">
+              <div><p class="eyebrow">REQUEST PLAYGROUND</p><h2>Authorize a payment</h2></div>
+              <div class="section-actions"><span class="count-pill">POST /payments/authorize</span><button class="primary-button" id="request-button">Authorize <span>→</span></button><button class="ghost-button" id="reset-button">Reset</button></div>
+            </div>
+
+            <div class="request-panel">
+              <div class="setup-banner"><span class="setup-icon">✦</span><div><strong>Demo path:</strong> approve $450, freeze the card, then submit another payment. Each action reads the latest Harper state.</div></div>
+              <div class="scenario-row" aria-label="Demo scenarios">
+                <button class="scenario-button selected" data-scenario="valid"><span class="chip-icon">✓</span>Valid payment</button>
+                <button class="scenario-button" data-scenario="limit"><span class="chip-icon">↕</span>Exceeds limit</button>
+                <button class="scenario-button" data-scenario="frozen"><span class="chip-icon">□</span>Frozen card</button>
+                <button class="scenario-button" data-scenario="category"><span class="chip-icon">⊘</span>Blocked category</button>
+                <button class="scenario-button" data-scenario="duplicate"><span class="chip-icon">⧉</span>Duplicate payment</button>
+              </div>
+              <div class="scenario-explanation" id="scenario-explanation"><span class="scenario-explanation-mark">↗</span><span id="scenario-explanation-copy">New request: an approval should reduce the available limit.</span></div>
+              <div class="request-form">
+                <label><span class="field-label"><span class="field-icon">◉</span>Account</span><input id="account-input" value="account-maya" /><small class="field-note">Harper account record</small></label>
+                <label><span class="field-label"><span class="field-icon">▣</span>Card</span><select id="card-input"><option value="card-maya-4242">Maya Chen · •••• 4242</option></select><small class="field-note">Must belong to account</small></label>
+                <label><span class="field-label"><span class="field-icon">$</span>Amount (USD)</span><input id="amount-input" type="number" min="0" step="0.01" value="450.00" aria-describedby="amount-note amount-error" /><small class="field-note" id="amount-note">Stored as integer cents</small><small class="field-error" id="amount-error" hidden>Enter an amount greater than $0.00.</small></label>
+                <label><span class="field-label"><span class="field-icon">◎</span>Currency</span><select id="currency-input"><option>USD</option><option>CAD</option><option>EUR</option></select><small class="field-note">Must match account</small></label>
+                <label><span class="field-label"><span class="field-icon">⌁</span>Merchant</span><input id="merchant-input" value="Juniper Market" /><small class="field-note">Appears in audit trail</small></label>
+                <label><span class="field-label"><span class="field-icon">◇</span>Category</span><select id="category-input"><option value="grocery">Grocery</option><option value="software">Software</option><option value="travel">Travel</option><option value="gambling">Gambling</option></select><small class="field-note">Policy can block it</small></label>
+                <label class="full-width"><span class="field-label"><span class="field-icon">⧉</span>Idempotency key</span><input id="idempotency-input" value="demo-valid-001" /><small class="field-note" id="idempotency-note">New key = a new authorization attempt</small></label>
+              </div>
+              <div class="request-impact" id="request-impact"><div class="request-impact-heading"><span>REQUEST PREVIEW</span><strong id="request-impact-status">READY</strong></div><div class="request-impact-values"><strong id="request-impact-before">—</strong><b>→</b><strong id="request-impact-after">—</strong></div><small id="request-impact-note">Load the demo to preview the account change.</small></div>
+              <div class="request-preview"><span class="token-label">HARPER RESOURCE REQUEST</span><code id="request-preview">POST /payments/authorize</code></div>
+              <p class="security-note">Simulated money only · no bank, card network, or payment processor is connected.</p>
+            </div>
+
+          </div>
+
+          <section class="activity-panel audit-dock" id="audit" aria-label="Live audit stream">
+            <div class="activity-heading">
+              <div class="activity-title"><span class="stream-mark"><span class="pulse-dot"></span></span><div><p class="eyebrow">AUDIT STREAM</p><h3>Recent decisions</h3></div></div>
+              <div class="activity-status"><span>rinku · HARPER RECORDS</span><span class="count-pill" id="audit-count">0 decisions</span></div>
+            </div>
+            <div id="decisions" class="decisions empty-state">Load demo, then run a payment to create an audit record.</div>
+            <div id="audit-detail-drawer" class="audit-detail-drawer" hidden aria-live="polite"></div>
+          </section>
+
+          <section class="panel result-panel" id="result-panel">
+            <div class="panel-heading"><span class="panel-icon">◎</span><h3>Decision visual</h3><span class="decision-endpoint">RESOURCE RESULT</span></div>
+            <div id="result-empty" class="result-empty">Run a payment to see each policy check and its result.</div>
+            <div id="result-content" hidden>
+              <div class="decision-visual" id="decision-visual">
+                <div class="decision-orb"><span id="decision-orb-icon">$</span><strong id="decision-orb-label">READY</strong><small id="decision-orb-sub">awaiting payment</small></div>
+                <div class="decision-path">
+                  <div class="path-node passed" id="path-request"><span>01</span><strong>Request</strong><small>received</small></div>
+                  <i></i>
+                  <div class="path-node" id="path-rules"><span>02</span><strong>Rules</strong><small id="path-rules-copy">pending</small></div>
+                  <i></i>
+                  <div class="path-node" id="path-account"><span>03</span><strong>State</strong><small id="path-account-copy">pending</small></div>
+                  <i></i>
+                  <div class="path-node" id="path-audit"><span>04</span><strong>Audit</strong><small>recorded</small></div>
+                </div>
+              </div>
+              <div class="decision-badge" id="decision-badge">—</div>
+              <p class="result-reason" id="result-reason">—</p>
+              <p class="result-value" id="result-value">—</p>
+              <div class="balance-transition">
+                <div><span>BEFORE</span><strong id="result-before">—</strong></div><b>→</b><div class="transition-after"><span>AFTER</span><strong id="result-after">—</strong></div>
+              </div>
+              <p class="balance-change-note" id="balance-change-note">—</p>
+              <div class="result-lines">
+                <div><span>AMOUNT</span><strong id="result-amount">—</strong></div>
+                <div><span>TRANSACTION</span><strong id="result-transaction">—</strong></div>
+                <div><span>DECISION ID</span><strong id="result-decision">—</strong></div>
+                <div><span>ACTOR</span><strong id="result-actor">rinku</strong></div>
+              </div>
+              <div class="rule-list" id="rule-list"></div>
+              <div class="writes-box"><span>HARPER TABLES TOUCHED</span><small id="tables-written">—</small></div>
+            </div>
+          </section>
+
+          <aside class="side-column">
+            <div class="panel state-panel" id="state-panel">
+              <div class="panel-heading"><span class="panel-icon">◈</span><h3>Current account state</h3><span class="live-badge"><span class="pulse-dot"></span>SYNCED</span></div>
+              <div class="account-identity"><strong id="account-name">—</strong><span id="account-id">—</span></div>
+              <div class="state-visual-grid">
+                <div class="balance-ring" id="available-ring"><div><span>AVAILABLE</span><strong id="available-limit">—</strong></div></div>
+                <div class="state-meter compact-meter"><div class="meter-heading"><span>DAILY SPEND</span><strong id="daily-spend">—</strong></div><div class="meter-track daily"><span id="daily-bar"></span></div><small id="daily-copy">—</small></div>
+              </div>
+              <div class="state-delta" id="state-delta"><div class="state-delta-heading"><span>LAST ACCOUNT CHANGE</span><strong id="state-delta-value">—</strong></div><div class="delta-track"><span id="delta-bar"></span></div><small id="state-delta-copy">Run a payment to see whether the available limit changes.</small></div>
+              <div class="card-state-row"><span>Card ending <strong id="card-last-four">—</strong></span><strong id="card-status">—</strong></div>
+              <div class="control-label">OPERATOR CONTROLS</div>
+              <div class="operator-actions"><button class="small-button" id="freeze-card">Freeze card</button><button class="small-button" id="unfreeze-card">Unfreeze card</button></div>
+              <div class="operator-state"><span>TRANSACTION LIMIT</span><strong id="policy-limit">—</strong></div>
+              <div class="operator-actions"><button class="small-button" id="lower-limit">Lower to $250</button><button class="small-button" id="raise-limit">Restore $1,000</button></div>
+              <div class="harper-mini"><span>DEMO TABLES</span><strong>Account · Card · Policy · Transaction · Decision</strong><small id="last-sync">Actor: rinku · waiting for demo state</small></div>
+            </div>
+          </aside>
+        </section>
+      </main>
+      </div>
+      <footer><span>Pitsky Guard / MVP</span><span>One Harper component · five tables · five endpoints</span></footer>
+    </div>
+    <script type="module" src="/app.js"></script>
+  </body>
+</html>

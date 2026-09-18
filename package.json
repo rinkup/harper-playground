@@ -1,0 +1,16 @@
+{
+  "name": "pitsky-guard",
+  "version": "0.1.0",
+  "private": true,
+  "description": "A simulated Harper component for explainable payment authorization.",
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "dependencies": {
+    "harper": "5.2.10"
+  },
+  "scripts": {
+    "dev": "harper dev ."
+  }
+}

@@ -1,0 +1,60 @@
+type Accounts @table @export(name: "accounts") {
+  id: String! @primaryKey
+  customerName: String!
+  currency: String!
+  availableLimitCents: Long!
+  dailyLimitCents: Long!
+  dailySpentCents: Long!
+  status: String! @indexed
+  updatedBy: String!
+  updatedAt: String!
+}
+
+type Cards @table @export(name: "cards") {
+  id: String! @primaryKey
+  accountId: String! @indexed
+  lastFour: String!
+  status: String! @indexed
+  updatedBy: String!
+  updatedAt: String!
+}
+
+type SpendPolicies @table @export(name: "spend-policies") {
+  id: String! @primaryKey
+  accountId: String! @indexed
+  maxTransactionCents: Long!
+  blockedCategories: String!
+  active: Boolean! @indexed
+  updatedBy: String!
+  updatedAt: String!
+}
+
+type Transactions @table @export(name: "transactions") {
+  id: String! @primaryKey
+  idempotencyKey: String! @indexed
+  accountId: String! @indexed
+  cardId: String! @indexed
+  amountCents: Long!
+  currency: String!
+  merchant: String!
+  merchantCategory: String! @indexed
+  status: String! @indexed
+  actor: String! @indexed
+  createdAt: String!
+}
+
+type AuthorizationDecisions @table @export(name: "authorization-decisions") {
+  id: String! @primaryKey
+  transactionId: String
+  accountId: String!
+  cardId: String
+  decision: String! @indexed
+  reasonCode: String! @indexed
+  reason: String!
+  evaluatedRules: String!
+  amountCents: Long!
+  beforeAvailableLimitCents: Long!
+  afterAvailableLimitCents: Long!
+  actor: String! @indexed
+  createdAt: String!
+}
