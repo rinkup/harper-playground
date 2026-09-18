@@ -25,7 +25,7 @@
           document.documentElement.dataset.theme = resolved;
           document.documentElement.dataset.themePreference = preference;
           document.documentElement.style.colorScheme = resolved;
-          document.querySelector('#theme-color')?.setAttribute('content', resolved === 'dark' ? '#08120e' : '#edf4ef');
+          document.querySelector('#theme-color')?.setAttribute('content', resolved === 'dark' ? '#0f1120' : '#edf4ef');
           const picker = document.querySelector('#theme-select');
           if (picker) picker.value = preference;
           const icon = document.querySelector('#theme-icon');
